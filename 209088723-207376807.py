@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from pprint import pprint
 from matplotlib import pylab
 from scipy.spatial.distance import cdist
+from sklearn.preprocessing import MinMaxScaler
 
 params = {
     "xtick.labelsize": 18,
@@ -38,7 +39,9 @@ data_frame = pd.read_csv("virus_data.csv")
 randomness = ASSAF_ID % 100 + DANIEL_ID % 100
 X = data_frame.drop("spread", axis=1)
 Y = data_frame["spread"]
-train_set, test_set, train_labels, test_labels = train_test_split(X, Y, random_state=randomness, test_size=0.2)
+train_set, test_set, train_labels, test_labels = train_test_split(
+    X, Y, random_state=randomness, test_size=0.2
+)
 
 # ===================== part 2 ================================
 # Q5
@@ -78,31 +81,45 @@ class kNN(BaseEstimator, ClassifierMixin):
 
     def fit(self, X, y):
         self.X = X
-        self.y = y
+        self.y = y.to_numpy()
         return self
 
     def predict(self, X):
         distances = cdist(X, self.X)
-        predictions = []
-        print(len(X))
-        for index in range(len(X)):
-            first_k_point_labels_by_dist = self.y[
-                np.argpartition(distances[index], self.n_neighbors)[: self.n_neighbors]
-            ]
-            prediction = np.sign(np.sum(first_k_point_labels_by_dist))
-            print("^^")  # Broken here
-            predictions.append(prediction)
+        distance_idx = np.argpartition(distances, self.n_neighbors, -1)[:, :self.n_neighbors]
+        return np.sign(np.sum(self.y[distance_idx], axis=-1))
 
-        # Note: You can use self.n_neighbors here
-        # predictions = None
-        # TODO: compute the predicted labels (+1 or -1)
-        return predictions
 
+
+# Q8
 
 train_set, test_set, train_labels, test_labels = train_test_split(
-    data_frame[["PCR_01", "PCR_03"]], data_frame["spread"], random_state=randomness, test_size=0.2
+    data_frame[["PCR_01", "PCR_03"]],
+    data_frame["spread"],
+    random_state=randomness,
+    test_size=0.2,
 )
+# print(len(train_set), len(test_set))
+knn = kNN(n_neighbors=1)
+# knn.fit(train_set, train_labels)
+# predictions = knn.predict(test_set)
 
-knn = kNN()
+
+import visualize_clf
+# visualize_clf.visualize_clf(knn, test_set, test_labels, "spread", "PCR_01", "PCR_03")
+# train_score = knn.score(train_set, train_labels)
+# test_score = knn.score(test_set, test_labels)
+# print(train_score, test_score)
+
+# Q9
+
+test_set = MinMaxScaler((-1, 1)).fit_transform(test_set)
+train_set = MinMaxScaler((-1, 1)).fit_transform(train_set)
+knn = kNN(n_neighbors=5)
 knn.fit(train_set, train_labels)
-print(knn.predict(test_set))
+visualize_clf.visualize_clf(knn, test_set, test_labels, "normalized spread", "PCR_01", "PCR_03")
+train_score = knn.score(train_set, train_labels)
+test_score = knn.score(test_set, test_labels)
+print(train_score, test_score)
+
+
